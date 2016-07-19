@@ -48,8 +48,8 @@ class opencv_ocr(object):
     def _svm_classify_one_char(self, model, img):
         _h, _w = img.shape[:2]
         x, y, w, h = 0, 0, _w, _h
-        if not (16 <= h <= 64 and w <= 1.2 * h):
-            print 'the size of image is incorrect.'
+        #if not (16 <= h <= 64 and w <= 1.2 * h):
+        #    print 'the size of image is incorrect.'
 
         m = img != 0
         if not 0.1 < m.mean() < 0.9:
@@ -78,7 +78,7 @@ class opencv_ocr(object):
             _str = _str + self._svm_classify_one_char(model, img)
         return _str
 
-    def _split_special_char(self, image, size_limit):
+    def _split_special_char(self, image):
         _h, _w = image.shape[:2]
         _count_nonzero = []
         for _col in image.T:
@@ -90,11 +90,26 @@ class opencv_ocr(object):
         _img_list.append(image[0:_h, 0:_index])
         return _img_list
 
+    def _split_special_char_fine(self, image):
+        _h, _w = image.shape[:2]
+        _count_nonzero = []
+        for _col in image.T:
+            _count_nonzero.append(np.count_nonzero(_col))
+        _min = min(_count_nonzero[_w / 4: _w *3 / 4])
+        if _min < int(_h * 0.1):
+            _index = _count_nonzero.index(_min, _w / 4, _w *3 / 4)
+            _img_list = []
+            _img_list.append(image[0:_h, _index:_w])
+            _img_list.append(image[0:_h, 0:_index])
+            return _img_list
+        else:
+            return None
+
     def _split_add_iter(self, _idx, _index, split_list, image_list, size_limit):
         for _split in split_list:
             _h1, _w1 = _split.shape[:2]
             if _h1 > size_limit[1] or _w1 > 1.2 * _h1:
-                __split = self._split_special_char(_split, image_list)
+                __split = self._split_special_char(_split)
                 if len(__split) > 1 and __split[0] != [] and __split[1] != []:
                     _idx = self._split_add_iter(_idx, _index, __split, image_list, size_limit)
                 continue
@@ -114,12 +129,22 @@ class opencv_ocr(object):
                 # print 'incorrect mean. remove it'
                 del image_list[_idx]
                 _idx -= 1
+            # 粗分割
             elif not (size_limit[0] <= _h <= size_limit[1] and _w <= 1.2 * _h):
                 del image_list[_idx]
                 _idx -= 1
-                _list_img = self._split_special_char(_img, size_limit)
+                _list_img = self._split_special_char(_img)
                 # print 'incorrect size. try to split it to %d'%len(_list_img)
                 _idx = self._split_add_iter(_idx, _index, _list_img, image_list, size_limit)
+            # 细分割判断
+            elif (size_limit[0] <= _h <= size_limit[1] and (1.0 * _h) <= _w <= (1.2 * _h)):
+                _list_img = self._split_special_char_fine(_img)
+                if _list_img:
+                    del image_list[_idx]
+                    _idx -= 1
+                    for __img in _list_img:
+                        image_list.insert(_idx, __img)
+                        _idx += 1
             _idx += 1
 
     def _character_location(self, image, Precise=True):
@@ -136,8 +161,7 @@ class opencv_ocr(object):
         h, w = img_gray.shape[:2]
 
         _, img_binary = cv2.threshold(
-            img_gray, 100, 255, cv2.THRESH_OTSU + cv2.THRESH_BINARY_INV)
-
+            img_gray, 0, 255, cv2.THRESH_OTSU + cv2.THRESH_BINARY_INV)
         if Precise:
             # 腐蚀
             kernel_1 = np.ones((3, 3), np.uint8)
@@ -168,6 +192,9 @@ class opencv_ocr(object):
             mat = cv2.getAffineTransform(src, dst)
             # 通过此函数，可以将文字区域修正为水平方向
             img_rot = cv2.warpAffine(img_binary, mat, (w, h))
+            # 再次二值化，必须确保是黑底白字
+            _, img_rot = cv2.threshold(
+                img_rot, 0, 255, cv2.THRESH_OTSU)
             # 截取最小矩形区域
             img_roi = img_rot[0:rect_h, 0:rect_w]
         else:
@@ -187,9 +214,12 @@ class opencv_ocr(object):
     def preprocess_hog(self, digits):
         samples = []
         for img in digits:
+            # 计算两个方向的梯度值
             gx = cv2.Sobel(img, cv2.CV_32F, 1, 0)
             gy = cv2.Sobel(img, cv2.CV_32F, 0, 1)
+            # 计算幅度值和梯度的方向
             mag, ang = cv2.cartToPolar(gx, gy)
+            # 将360度（2*PI）分割成16个bin
             bin_n = 16
             bin = np.int32(bin_n*ang/(2*np.pi))
             bin_cells = bin[:10,:10], bin[10:,:10], bin[:10,10:], bin[10:,10:]
