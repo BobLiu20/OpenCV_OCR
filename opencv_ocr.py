@@ -50,21 +50,11 @@ class opencv_ocr(object):
         x, y, w, h = 0, 0, _w, _h
         #if not (16 <= h <= 64 and w <= 1.2 * h):
         #    print 'the size of image is incorrect.'
+        # m = img != 0
+        # if not 0.1 < m.mean() < 0.9:
+        #     print 'incorrect mean.', m.mean()
 
-        m = img != 0
-        if not 0.1 < m.mean() < 0.9:
-            print 'incorrect mean.', m.mean()
-
-        s = 1.5 * float(h) / CHAR_SIZE
-        m = cv2.moments(img)
-        c1 = np.float32([m['m10'], m['m01']]) / m['m00']
-        c0 = np.float32([CHAR_SIZE / 2, CHAR_SIZE / 2])
-        t = c1 - s * c0
-        A = np.zeros((2, 3), np.float32)
-        A[:, :2] = np.eye(2) * s
-        A[:, 2] = t
-        bin_norm = cv2.warpAffine(
-            img, A, (CHAR_SIZE, CHAR_SIZE), flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR)
+        bin_norm, _ = self.__scall_and_border_image(img, (CHAR_SIZE, CHAR_SIZE))
         bin_norm = self.deskew(bin_norm)
         if x + w + CHAR_SIZE < img.shape[1] and y + CHAR_SIZE < img.shape[0]:
             img[y:, x + w:][:CHAR_SIZE, :CHAR_SIZE] = bin_norm[..., np.newaxis]
@@ -167,7 +157,7 @@ class opencv_ocr(object):
             kernel_1 = np.ones((3, 3), np.uint8)
             img_erosion = cv2.erode(img_binary, kernel_1, iterations=1)
             # 膨胀
-            kernel_2 = np.ones((7, 7), np.uint8)
+            kernel_2 = np.ones((9, 9), np.uint8)
             img_dilate = cv2.dilate(img_erosion, kernel_2, iterations=2)
             # 提取轮廓
             contours, hierarchy = cv2.findContours(
@@ -235,3 +225,24 @@ class opencv_ocr(object):
 
             samples.append(hist)
         return np.float32(samples)
+
+    def __scall_and_border_image(self, src_image, target_size):
+        _h, _w = src_image.shape[:2]
+        _ratio_target = float(target_size[0]) / float(target_size[1])
+        _ratio_image = float(_w) / float(_h)
+        _max = max(_ratio_image, _ratio_target)
+        if _max == _ratio_image:
+            __w = target_size[0]
+            __h = int(target_size[0] / _ratio_image)
+        else:
+            __w = int(target_size[1] * _ratio_image)
+            __h = target_size[1]
+        _src_image = cv2.resize(src_image, (__w, __h), interpolation=cv2.INTER_LINEAR)
+
+        _left = (target_size[0] - __w) / 2
+        _right = target_size[0] - __w - _left
+        _top = (target_size[1] - __h) / 2
+        _bottom = target_size[1] - __h - _top
+        _src_image = cv2.copyMakeBorder(_src_image, _top, _bottom, _left, _right, cv2.BORDER_CONSTANT, value = 0)
+
+        return _src_image, (_left, _top, float(__w)/float(_w), float(__h)/float(_h))

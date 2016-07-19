@@ -15,10 +15,10 @@ if __name__ == '__main__' and __package__ is None:
     # 使用SVM算法
     _svm_model = _opencv_ocr.svm_init('digits_svm.dat')
     # 从文件夹img_data中读取所有图片
-    work_path = '%s/img_data/' % os.getcwd()
+    work_path = '%s/img_data2/' % os.getcwd()
     images_path = os.listdir(work_path)
     # 指定单张测试
-    # images_path = ['33.jpg']
+    # images_path = ['10.jpg']
     # 循环从列表中取原始图片进行识别
     for index, _path in enumerate(images_path):
         # 读取图片
@@ -53,13 +53,14 @@ if __name__ == '__main__' and __package__ is None:
         print 'classify %s is :'%_path, _string
 
 
+
         # 输出单个字符图片用于训练
         # for __idx, (__img, _ch) in enumerate(zip(_image_list, _string)):
         #      cv2.imwrite('%s/char_good/ch%d_%d_%s.jpg'%(os.getcwd(), index, __idx, _ch), __img)
 
         # 输出原图的二值化图像
-        # if len(_string) != 0:
+        if len(_string) != 0:
             # for _idx, __img in enumerate(_image_list):
             #     cv2.imshow('img%d'%_idx, __img)
-            # cv2.imshow('imagefull', img_binary)
-            # cv2.waitKey()
+            cv2.imshow('imagefull', img_binary)
+            cv2.waitKey()

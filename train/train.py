@@ -65,18 +65,20 @@ def __scall_and_border_image(src_image, target_size):
     return _src_image, (_left, _top, float(__w)/float(_w), float(__h)/float(_h))
 
 def load_chars(work_path):
-    images_path = os.listdir(work_path)
+    # images_path = os.listdir(work_path)
     digits, labels = [], []
-    for index, _path in enumerate(images_path):
-        if _path[_path.rfind('.'):] != '.jpg':
-            continue
-        ch_img = cv2.imread(work_path + _path)
-        _h, _w = ch_img.shape[:2]
-        ch_img, _ = __scall_and_border_image(ch_img, (CHAR_SIZE, CHAR_SIZE))
-        ch_img = cv2.cvtColor(ch_img, cv2.COLOR_BGR2GRAY)
-        digits.append(ch_img)
-        labels.append(ord(_path.split('.')[-2].split('_')[-1]))
-    return digits, labels
+    # for index, _path in enumerate(images_path):
+    for fpathe,dirs,fs in os.walk(work_path):
+        for f in fs:
+            _path = os.path.join(fpathe,f)
+            if _path[_path.rfind('.'):] != '.jpg':
+                continue
+            ch_img = cv2.imread(_path)
+            ch_img, _ = __scall_and_border_image(ch_img, (CHAR_SIZE, CHAR_SIZE))
+            ch_img = cv2.cvtColor(ch_img, cv2.COLOR_BGR2GRAY)
+            digits.append(ch_img)
+            labels.append(ord(_path.split('.')[-2].split('_')[-1]))
+    return np.array(digits), np.array(labels)
 
 def deskew(img):
     m = cv2.moments(img)
@@ -119,26 +121,31 @@ if __name__ == '__main__':
     digits, labels = load_chars('%s/char_good/'%os.getcwd())
     print 'preprocessing...digits=%d,labels=%d'%(len(digits),len(labels))
     # shuffle digits 打乱所有字符
-    # rand = np.random.RandomState(321)
-    # shuffle = rand.permutation(len(digits))
-    # digits, labels = digits[shuffle], labels[shuffle]
+    rand = np.random.RandomState(len(digits))
+    shuffle = rand.permutation(len(digits))
+    digits, labels = digits[shuffle], labels[shuffle]
 
     digits2 = map(deskew, digits)
     samples = preprocess_hog(digits2)
 
-    train_n = int(0.9*len(samples))
-    digits_train, digits_test = np.split(digits2, [train_n])
-    samples_train, samples_test = np.split(samples, [train_n])
-    labels_train, labels_test = np.split(labels, [train_n])
+    if 0:# 取前90%的训练，后10%的测试
+        train_n = int(0.9*len(samples))
+        digits_train, digits_test = np.split(digits2, [train_n])
+        samples_train, samples_test = np.split(samples, [train_n])
+        labels_train, labels_test = np.split(labels, [train_n])
+    else:# 全部训练+全部测试
+        digits_train, digits_test = digits2, digits2
+        samples_train, samples_test = samples, samples
+        labels_train, labels_test = labels, labels
 
     print 'training KNearest...'
-    model = KNearest(k=4)
+    model = KNearest(k=4)# or k=4
     model.train(samples_train, labels_train)
     evaluate_model(model, digits_test, samples_test, labels_test)
     # model.save('digits_knearest.dat')
 
     print 'training SVM...'
-    model = SVM(C=2.67, gamma=5.383)
+    model = SVM(C=12.00, gamma=5.383)
     model.train(samples_train, labels_train)
     evaluate_model(model, digits_test, samples_test, labels_test)
     print 'saving SVM as "digits_svm.dat"...'
