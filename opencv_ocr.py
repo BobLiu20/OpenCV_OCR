@@ -70,6 +70,8 @@ class opencv_ocr(object):
 
     def _split_special_char(self, image):
         _h, _w = image.shape[:2]
+        if _h <= 1 or _w <= 1:
+            return []
         _count_nonzero = []
         for _col in image.T:
             _count_nonzero.append(np.count_nonzero(_col))

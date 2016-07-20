@@ -15,7 +15,7 @@ if __name__ == '__main__' and __package__ is None:
     # 使用SVM算法
     _svm_model = _opencv_ocr.svm_init('digits_svm.dat')
     # 从文件夹img_data中读取所有图片
-    work_path = '%s/img_data2/' % os.getcwd()
+    work_path = '%s/img_data/data3/' % os.getcwd()
     images_path = os.listdir(work_path)
     # 指定单张测试
     # images_path = ['10.jpg']
@@ -39,6 +39,7 @@ if __name__ == '__main__' and __package__ is None:
             x, y, w, h = cv2.boundingRect(cnt)
             _box_shape.append([x, x+w, y, y+h])
         _box_shape = sorted(_box_shape, key=lambda _box:_box[0])
+
         # 所有可能字符的list
         _image_list = [img_binary[_box[2]:_box[3],_box[0]:_box[1]] for _box in _box_shape]
         # Dynamic size
@@ -55,12 +56,12 @@ if __name__ == '__main__' and __package__ is None:
 
 
         # 输出单个字符图片用于训练
-        # for __idx, (__img, _ch) in enumerate(zip(_image_list, _string)):
-        #      cv2.imwrite('%s/char_good/ch%d_%d_%s.jpg'%(os.getcwd(), index, __idx, _ch), __img)
+        for __idx, (__img, _ch) in enumerate(zip(_image_list, _string)):
+             cv2.imwrite('%s/char_good/ch%d_%d_%s.jpg'%(os.getcwd(), index, __idx, _ch), __img)
 
         # 输出原图的二值化图像
-        if len(_string) != 0:
-            # for _idx, __img in enumerate(_image_list):
-            #     cv2.imshow('img%d'%_idx, __img)
-            cv2.imshow('imagefull', img_binary)
-            cv2.waitKey()
+        # if len(_string) != 0:
+        #     for _idx, __img in enumerate(_image_list):
+        #         cv2.imshow('img%d'%_idx, __img)
+        #     cv2.imshow('imagefull', img_binary)
+        #     cv2.waitKey()
