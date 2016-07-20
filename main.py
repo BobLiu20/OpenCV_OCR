@@ -15,7 +15,7 @@ if __name__ == '__main__' and __package__ is None:
     # 使用SVM算法
     _svm_model = _opencv_ocr.svm_init('digits_svm.dat')
     # 从文件夹img_data中读取所有图片
-    work_path = '%s/img_data/data3/' % os.getcwd()
+    work_path = '%s/img_data/data4/' % os.getcwd()
     images_path = os.listdir(work_path)
     # 指定单张测试
     # images_path = ['10.jpg']
